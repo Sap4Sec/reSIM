@@ -91,7 +91,7 @@ quantization:
 
 data:
   base_path: "/home/jovyan/work/reSAFE/reSAFE_code/"
-  train_file: "reranker/pandas_dataset_from_bincorp/dataset_for_margin_loss/final_val_hn.csv"
+  train_file: "reranker/pandas_dataset_from_bincorp/dataset_for_margin_loss/final_train_hn.csv"
   val_file: "reranker/pandas_dataset_from_bincorp/dataset_for_margin_loss/final_val_hn.csv"
   use_half_dataset: true
   random_seed: 1000
