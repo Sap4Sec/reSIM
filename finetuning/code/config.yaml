@@ -1,0 +1,114 @@
+# Reranker Finetuning Configuration
+# Switch between 'bert' and 'deepseek' using model.type
+
+model:
+  type: "deepseek"  # Options: "bert", "deepseek"
+  
+  # BERT-specific settings
+  bert:
+    model_path: "/home/jovyan/work/reSAFE/reSAFE_code/reranker/models/next_sentence_prediction_bert_normal_mask30/checkpoint-67246"
+    tokenizer_path: "/home/jovyan/work/reSAFE/reSAFE_code/tokenizer"
+  
+  # DeepSeek-specific settings
+  deepseek:
+    model_name: "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
+    sep_token: "<SEP>"
+    pad_token: "<PAD>"
+
+# ============================================================
+# MODEL-SPECIFIC TRAINING HYPERPARAMETERS
+# ============================================================
+
+training:
+  bert:
+    learning_rate: 0.00001
+    num_epochs: 10
+    per_device_train_batch_size: 32
+    per_device_eval_batch_size: 32
+    gradient_accumulation_steps: 8
+    max_seq_length: 512
+    gradient_checkpointing: false
+    output_model_name: "reBERT"
+  
+  deepseek:
+    learning_rate: 0.0001
+    num_epochs: 1
+    per_device_train_batch_size: 8
+    per_device_eval_batch_size: 8
+    gradient_accumulation_steps: 16
+    max_seq_length: 2048
+    gradient_checkpointing: true
+    output_model_name: "reDEEP"
+
+  # Shared training settings (apply to both models)
+  shared:
+    warmup_ratio: 0.03
+    eval_accumulation_steps: 4
+    save_strategy: "steps"
+    save_steps: 0.05
+    eval_strategy: "steps"
+    eval_steps: 0.05
+    logging_steps: 0.05
+    margin: 0.2
+    save_total_limit: 3
+    load_best_model_at_end: true
+    metric_for_best_model: "eval_loss"
+    bf16: true
+    fp16: false
+    tf32: true
+
+# ============================================================
+# LORA CONFIGURATION (only for DeepSeek)
+# ============================================================
+
+lora:
+  r: 16
+  alpha: 16
+  dropout: 0.05
+  target_modules:
+    - "self_attn.q_proj"
+    - "self_attn.k_proj"
+    - "self_attn.v_proj"
+    - "self_attn.o_proj"
+    - "mlp.gate_proj"
+    - "mlp.up_proj"
+    - "mlp.down_proj"
+  bias: "none"
+
+# ============================================================
+# QUANTIZATION (only for DeepSeek)
+# ============================================================
+
+quantization:
+  load_in_4bit: true
+  use_double_quant: true
+  quant_type: "nf4"
+  compute_dtype: "bfloat16"
+
+# ============================================================
+# DATA PATHS
+# ============================================================
+
+data:
+  base_path: "/home/jovyan/work/reSAFE/reSAFE_code/"
+  train_file: "reranker/pandas_dataset_from_bincorp/dataset_for_margin_loss/final_val_hn.csv"
+  val_file: "reranker/pandas_dataset_from_bincorp/dataset_for_margin_loss/final_val_hn.csv"
+  use_half_dataset: true
+  random_seed: 1000
+
+# ============================================================
+# HARDWARE
+# ============================================================
+
+hardware:
+  cuda_visible_devices: "6,7"
+  dataloader_num_workers: 2
+  dataloader_pin_memory: true
+
+# ============================================================
+# OUTPUT
+# ============================================================
+
+output:
+  db_name: "bincorp"
+  base_output_dir: "finetuning/finetuned_models"
