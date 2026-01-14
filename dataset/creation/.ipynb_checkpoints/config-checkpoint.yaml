@@ -1,0 +1,29 @@
+# Pipeline Configuration
+# All values can be overridden via environment variables prefixed with PIPELINE_
+
+# Database settings
+db_host: postgres
+db_port: 5432
+db_name: resafe #TODO: reSIM
+db_user: jovyan
+db_password: secret
+db_pool_min_conn: 2
+db_pool_max_conn: 15
+
+# Ghidra settings
+ghidra_path: ./analyzers/ghidra
+ghidra_projects_path: ./analyzers/ghidra_projects
+ghidra_timeout_minutes: 20
+
+# Processing settings
+num_producers: 4
+num_consumers: 2
+batch_size: 10
+insert_batch_size: 20
+
+# Paths
+libc_signatures_path: ../extraction/data/libc_signatures.json
+
+# Logging
+log_level: INFO
+log_dir: ../logs
