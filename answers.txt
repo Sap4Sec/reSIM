@@ -1,0 +1,8 @@
+1. Yes, "reranker_parsed" is the assembly code representation of the function used for reranking and it is in the form of pre-processed assembly.
+2. For the bi-encoder, include only the code to compute the function search. It should currently be in bfs_utils.py.
+3. Keep only reBERT and reDEEP.
+4. Yes, create a config.yaml file.
+5. Allow for flexible GPU specification.
+6. Keep the metrics as they are.
+7. Keep the nested structure.
+8. Remove all the notebooks. The code in the notebooks is a previous version of the pipeline.

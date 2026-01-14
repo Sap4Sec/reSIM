@@ -1,0 +1,18 @@
+# Function Search Pipeline Dependencies
+
+# Core dependencies
+torch>=2.0.0
+numpy>=1.21.0
+pandas>=1.3.0
+tqdm>=4.62.0
+loguru>=0.6.0
+pyyaml>=6.0
+
+# Transformer models
+transformers>=4.30.0
+
+# PEFT for LoRA (reDEEP reranker)
+peft>=0.4.0
+
+# Quantization (reDEEP reranker)
+bitsandbytes>=0.41.0
