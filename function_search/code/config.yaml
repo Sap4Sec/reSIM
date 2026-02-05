@@ -1,7 +1,7 @@
 # Function Search Pipeline Configuration
 
 # Base paths
-base_path: "/home/jovyan/work/reSAFE/reSAFE_code/"
+base_path: "/app/vol/reSAFE_code"
 db_name: "bincorp"
 
 # Experiment settings
@@ -24,21 +24,16 @@ bfs_models:
 
 # Reranker configurations
 rerankers:
-  reBERT:
-    name: "reBERT_marginloss_finetuning_10_epochs_1e-05_lr"
-    model_path: "reranker/finetuned_models/reBERT/bincorp/reBERT_marginloss_finetuning_10_epochs_1e-05_lr/checkpoint-51790"
-    tokenizer_path: "tokenizer"
-    max_length: 512
     
   reDEEP:
     name: "reDEEP_marginloss_finetuning_1_epochs_0.0001_lr"
     model_path: "reranker/finetuned_models/reDEEP/bincorp/reDEEP_marginloss_finetuning_1_epochs_0.0001_lr/checkpoint-10357"
-    tokenizer_path: null  # Uses model's tokenizer
+    tokenizer_path: null
     max_length: 2048
 
 # Output directory structure
 output:
-  base_dir: "refactored_code/function_search/search_results"
+  base_dir: "function_search/search_results"
   bfs_subdir: "BFS"
   pools_subdir: "POOLS_FOR_TESTING"
 

@@ -1,5 +1,3 @@
-"""Metrics computation for function search evaluation."""
-
 import math
 from typing import List, Tuple, Dict, Any
 import numpy as np

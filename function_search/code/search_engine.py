@@ -10,15 +10,6 @@ from tqdm import tqdm
 
 
 class SearchEngine:
-    """Embedding-based search engine using cosine similarity.
-    
-    This class loads pre-computed embeddings and performs fast nearest neighbor
-    search using cosine similarity.
-    
-    Attributes:
-        ids: List of function IDs corresponding to embedding rows
-        matrix: Tensor of embeddings on GPU
-    """
     
     def __init__(self, checkpoint_dir, ids_filename, embeddings_filename):
         """Initialize the search engine.
