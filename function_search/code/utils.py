@@ -209,6 +209,12 @@ def generate_improvement_table(results_bincorp, results_multicomp):
     for db_name, results in [("bincorp", results_bincorp), ("multicomp", results_multicomp)]:
         display_name = "BINCORP" if db_name == "bincorp" else "MULTICOMP"
         
+        # Collect all improvements for computing AVG row
+        all_ndcg_improvements = {k: [] for k in k_subset}
+        all_recall_improvements = {k: [] for k in k_subset}
+        all_ndcg_avg = []
+        all_recall_avg = []
+        
         for model in BFS_MODELS:
             if results[model]["baseline"] is None or results[model]["reranked"] is None:
                 continue
@@ -236,11 +242,41 @@ def generate_improvement_table(results_bincorp, results_multicomp):
                 
                 ndcg_improvements.append(ndcg_imp)
                 recall_improvements.append(recall_imp)
+                
+                # Track for AVG row
+                all_ndcg_improvements[k].append(ndcg_imp)
+                all_recall_improvements[k].append(recall_imp)
             
             row["nDCG AVG"] = f"+{np.mean(ndcg_improvements):.1f}%"
             row["Recall AVG"] = f"+{np.mean(recall_improvements):.1f}%"
             
+            all_ndcg_avg.append(np.mean(ndcg_improvements))
+            all_recall_avg.append(np.mean(recall_improvements))
+            
             rows.append(row)
+        
+        # Add AVG row for this dataset
+        avg_row = {"Dataset": "", "BFS Model": "AVG"}
+        for k in k_subset:
+            if all_ndcg_improvements[k]:
+                avg_row[f"nDCG@{k}"] = f"+{np.mean(all_ndcg_improvements[k]):.1f}%"
+            else:
+                avg_row[f"nDCG@{k}"] = "N/A"
+            if all_recall_improvements[k]:
+                avg_row[f"Recall@{k}"] = f"+{np.mean(all_recall_improvements[k]):.1f}%"
+            else:
+                avg_row[f"Recall@{k}"] = "N/A"
+        
+        if all_ndcg_avg:
+            avg_row["nDCG AVG"] = f"+{np.mean(all_ndcg_avg):.1f}%"
+        else:
+            avg_row["nDCG AVG"] = "N/A"
+        if all_recall_avg:
+            avg_row["Recall AVG"] = f"+{np.mean(all_recall_avg):.1f}%"
+        else:
+            avg_row["Recall AVG"] = "N/A"
+        
+        rows.append(avg_row)
     
     df = pd.DataFrame(rows)
     format_table(df, "Table 2: Improvement (%) after applying reDEEP reranker")

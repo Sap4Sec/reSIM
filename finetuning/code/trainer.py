@@ -10,71 +10,42 @@ from transformers import Trainer
 
 
 class MarginRankingTrainer(Trainer):
-    """
-    Custom Trainer that uses MarginRankingLoss for reranking.
-    Handles positive/negative pair inputs rather than standard labels.
-    """
-    
     def __init__(self, *args, margin=0.0, **kwargs):
         super().__init__(*args, **kwargs)
         self.rank_loss = nn.MarginRankingLoss(margin=margin)
         
-    def compute_loss(
-        self,
-        model,
-        inputs,
-        return_outputs=False,
-        num_items_in_batch=None
-    ):
-        input_ids_pos = inputs["input_ids_pos"]
-        attn_pos = inputs["attention_mask_pos"]
-        input_ids_neg = inputs["input_ids_neg"]
-        attn_neg = inputs["attention_mask_neg"]
-
-        # Check if model has no_sync (i.e., is wrapped in DDP)
-        if hasattr(model, 'no_sync'):
-            # Training mode with DDP - sync gradients only on second forward pass
-            with model.no_sync():
-                output_pos = model(input_ids=input_ids_pos, attention_mask=attn_pos)
-                s_pos = output_pos.logits.squeeze(-1)
-
-            output_neg = model(input_ids=input_ids_neg, attention_mask=attn_neg)
-            s_neg = output_neg.logits.squeeze(-1)
-        else:
-            # Evaluation mode or single GPU
-            output_pos = model(input_ids=input_ids_pos, attention_mask=attn_pos)
-            s_pos = output_pos.logits.squeeze(-1)
-
-            output_neg = model(input_ids=input_ids_neg, attention_mask=attn_neg)
-            s_neg = output_neg.logits.squeeze(-1)
-
-        # Target: positive should score higher than negative
-        target = torch.ones(s_pos.size(0), device=s_pos.device, dtype=s_pos.dtype)
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        input_ids = torch.cat([
+            inputs["input_ids_pos"], 
+            inputs["input_ids_neg"]
+        ], dim=0)
+        
+        attention_mask = torch.cat([
+            inputs["attention_mask_pos"], 
+            inputs["attention_mask_neg"]
+        ], dim=0)
+        
+        outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+        logits = outputs.logits.squeeze(-1)
+        
+        batch_size = inputs["input_ids_pos"].size(0)
+        s_pos = logits[:batch_size]
+        s_neg = logits[batch_size:]
+        
+        target = torch.ones_like(s_pos)
         loss = self.rank_loss(s_pos, s_neg, target)
-
+        
         if return_outputs:
-            return loss, output_pos
+            return loss, outputs
         return loss
 
-    def prediction_step(
-        self,
-        model,
-        inputs,
-        prediction_loss_only,
-        ignore_keys=None
-    ):
-        """Compute loss for evaluation without predictions."""
+    def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None):
         with torch.no_grad():
             loss = self.compute_loss(model, inputs, return_outputs=False)
-        
         return (loss, None, None)
 
 
 class MarginRankingCollator:
-    """
-    Data collator for margin ranking dataset.
-    Stacks positive and negative pairs into batches.
-    """
     
     def __init__(self, tokenizer, padding=True, pad_to_multiple_of=None):
         self.tokenizer = tokenizer

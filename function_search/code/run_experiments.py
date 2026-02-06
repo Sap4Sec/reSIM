@@ -12,6 +12,8 @@ from config import Config, load_config
 from data_utils import load_csv, create_pairs, load_bfs_predictions, save_predictions, save_metrics
 from metrics import extract_info_with_optimum
 
+from rerankers.deep_reranker import worker_process
+
 
 def compute_batch_logits_reranker_parallel(
     config,
@@ -23,33 +25,11 @@ def compute_batch_logits_reranker_parallel(
     k_value,
     batch_size
 ):
-    """Run parallel reranking across multiple GPUs.
-    
-    Args:
-        config: Configuration object
-        reranker_name: Name of the reranker ("reBERT" or "reDEEP")
-        df: DataFrame with query functions
-        full_df: DataFrame with all functions
-        sim_results: Bi-encoder results to rerank
-        base_res_path: Path to save results
-        k_value: Number of candidates to rerank
-        batch_size: Batch size for inference
-        
-    Returns:
-        List of (true_labels, sorted_ids, num_gt) tuples
-    """
+
     ctx = mp.get_context("spawn")
     
     # Create pairs for reranking
     q_seq, top_seq, top_ids, q_gts = create_pairs(df, full_df, sim_results, k_value=k_value)
-    
-    # Select worker based on reranker type
-    if reranker_name == "reBERT":
-        from rerankers.bert_reranker import worker_process
-    elif reranker_name == "reDEEP":
-        from rerankers.deep_reranker import worker_process
-    else:
-        raise ValueError(f"Unknown reranker: {reranker_name}")
     
     # Get model paths
     model_path = config.get_reranker_full_path(reranker_name)
@@ -110,16 +90,7 @@ def compute_batch_logits_reranker_parallel(
 
 
 def load_bfs_results(config, bfs_model, df):
-    """Load pre-computed BFS results, or compute them if not available.
-    
-    Args:
-        config: Configuration object
-        bfs_model: Name of the bi-encoder model
-        df: DataFrame with query functions (needed if computing)
-        
-    Returns:
-        Tuple of (predictions, metrics)
-    """
+
     from search_engine import find_top_k_similar
     from metrics import extract_info
     
@@ -191,13 +162,7 @@ def load_bfs_results(config, bfs_model, df):
 
 
 def run_experiments(config, bfs_model, reranker_name):
-    """Run reranking experiments for a single model and reranker.
-    
-    Args:
-        config: Configuration object
-        bfs_model: Name of the bi-encoder model
-        reranker_name: Name of the reranker
-    """
+
     print(f"\n{'='*60}")
     print(f"Running experiment: {bfs_model} -> {reranker_name}")
     print(f"{'='*60}")
@@ -211,9 +176,8 @@ def run_experiments(config, bfs_model, reranker_name):
     print(f"Loading data from: {test_path}")
     
     df = load_csv(test_path)
-    full_df = load_csv(test_path)  # Same file for both
+    full_df = load_csv(test_path)
     
-    # Load BFS results (will compute if not available)
     bfs_predictions, bfs_metrics = load_bfs_results(config, bfs_model, df)
     
     # Run for each search depth

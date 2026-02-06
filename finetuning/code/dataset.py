@@ -11,13 +11,6 @@ from torch.utils.data import Dataset
 
 
 class TripletDataset(Dataset):
-    """
-    Unified dataset for triplet margin ranking loss.
-    Supports both BERT and DeepSeek tokenization formats.
-    
-    BERT format:   [CLS] f1 [SEP] f2 [PAD]
-    DeepSeek format: f1 [SEP] f2 [PAD]
-    """
     
     def __init__(
         self,
@@ -74,28 +67,6 @@ class TripletDataset(Dataset):
             return self._tokenize_bert(f1_ids, f2_ids)
         else:
             return self._tokenize_deepseek(f1_ids, f2_ids)
-    
-    def _tokenize_bert(self, f1_ids, f2_ids):
-        """BERT tokenization: [CLS] f1 [SEP] f2 [PAD]"""
-        reserve = 3  # CLS, SEP, PAD
-        allowed = max(2, self.max_seq_length - reserve)
-        
-        half_allowed = max(1, allowed // 2)
-        f1_keep = min(len(f1_ids), half_allowed)
-        f2_keep = min(len(f2_ids), max(1, allowed - f1_keep))
-        
-        # Truncate from the beginning (keep end)
-        f1_ids = f1_ids[-f1_keep:] if f1_keep < len(f1_ids) else f1_ids[:]
-        f2_ids = f2_ids[-f2_keep:] if f2_keep < len(f2_ids) else f2_ids[:]
-        
-        tokens = [self.cls_token_id] + f1_ids + [self.sep_token_id] + f2_ids + [self.pad_token_id]
-        tokens = tokens[:self.max_seq_length]
-        
-        pad_len = max(0, self.max_seq_length - len(tokens))
-        input_ids = tokens + [self.pad_token_id] * pad_len
-        attention_mask = [1] * len(tokens) + [0] * pad_len
-        
-        return input_ids, attention_mask
     
     def _tokenize_deepseek(self, f1_ids, f2_ids):
         """DeepSeek tokenization: f1 [SEP] f2 [PAD]"""

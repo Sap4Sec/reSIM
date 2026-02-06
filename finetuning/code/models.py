@@ -22,56 +22,8 @@ def get_device():
     return torch.device(f"cuda:{local_rank}")
 
 
-def load_bert_model(config):
-    """
-    Load BERT model for full finetuning (no LoRA).
-    
-    Args:
-        config: Configuration dictionary
-        
-    Returns:
-        Tuple of (model, tokenizer)
-    """
-    device = get_device()
-    
-    bert_config = config["model"]["bert"]
-    model_path = bert_config["model_path"]
-    tokenizer_path = bert_config["tokenizer_path"]
-    
-    # Load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, use_fast=True)
-    tokenizer.padding_side = "right"
-    tokenizer.truncation_side = "left"
-    
-    if tokenizer.pad_token is None and tokenizer.eos_token is not None:
-        tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.pad_token_id = tokenizer.eos_token_id
-    
-    # Load model
-    model = AutoModelForSequenceClassification.from_pretrained(
-        model_path,
-        num_labels=1,
-        torch_dtype=torch.bfloat16,
-        low_cpu_mem_usage=True
-    )
-    
-    model.to(device)
-    model.config.use_cache = False
-    model.config.pad_token_id = tokenizer.pad_token_id
-    
-    return model, tokenizer
-
-
 def load_deepseek_model(config):
-    """
-    Load DeepSeek model with QLoRA (4-bit quantization + LoRA adapters).
-    
-    Args:
-        config: Configuration dictionary
-        
-    Returns:
-        Tuple of (model, tokenizer)
-    """
+
     device = get_device()
     
     deepseek_config = config["model"]["deepseek"]
@@ -147,20 +99,7 @@ def load_deepseek_model(config):
 
 
 def get_model_and_tokenizer(config):
-    """
-    Factory function to load model and tokenizer based on config.
-    
-    Args:
-        config: Configuration dictionary with model.type field
-        
-    Returns:
-        Tuple of (model, tokenizer)
-    """
+
     model_type = config["model"]["type"].lower()
     
-    if model_type == "bert":
-        return load_bert_model(config)
-    elif model_type == "deepseek":
-        return load_deepseek_model(config)
-    else:
-        raise ValueError(f"Unknown model type: {model_type}. Use 'bert' or 'deepseek'.")
+    return load_deepseek_model(config)

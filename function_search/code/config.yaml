@@ -27,7 +27,7 @@ rerankers:
     
   reDEEP:
     name: "reDEEP_marginloss_finetuning_1_epochs_0.0001_lr"
-    model_path: "reranker/finetuned_models/reDEEP/bincorp/reDEEP_marginloss_finetuning_1_epochs_0.0001_lr/checkpoint-10357"
+    model_path: "fintuned_models/reDEEP/bincorp/reDEEP_marginloss_finetuning_1_epochs_0.0001_lr/checkpoint-10357"
     tokenizer_path: null
     max_length: 2048
 

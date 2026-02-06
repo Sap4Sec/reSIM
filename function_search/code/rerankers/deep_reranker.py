@@ -25,11 +25,6 @@ MAX_LENGTH = 2048
 
 
 class DeepReranker(RerankerBase):
-    """DeepSeek-based cross-encoder reranker with PEFT/LoRA.
-    
-    Uses 4-bit quantization for memory efficiency and LoRA adapters
-    for finetuned weights.
-    """
     
     def __init__(self, max_length=MAX_LENGTH):
         super().__init__(max_length)
@@ -40,13 +35,6 @@ class DeepReranker(RerankerBase):
         tokenizer_path=None,
         gpu_id=0
     ):
-        """Load DeepSeek model with PEFT/LoRA and 4-bit quantization.
-        
-        Args:
-            model_path: Path to PEFT checkpoint
-            tokenizer_path: Not used (tokenizer loaded from model)
-            gpu_id: GPU device ID
-        """
         self.device = f"cuda:{gpu_id}"
         device_map = {"": self.device}
         
@@ -101,17 +89,6 @@ class DeepReranker(RerankerBase):
         queries,
         candidates
     ):
-        """Tokenize query-candidate pairs with balanced truncation.
-        
-        Uses [SEP] token to separate query and candidate.
-        
-        Args:
-            queries: List of query assembly strings
-            candidates: List of candidate assembly strings
-            
-        Returns:
-            Dictionary with input_ids and attention_mask tensors
-        """
         sep_id = self.tokenizer.sep_token_id
         pad_id = self.tokenizer.pad_token_id
         
@@ -153,14 +130,6 @@ class DeepReranker(RerankerBase):
         }
     
     def score(self, inputs):
-        """Score tokenized inputs.
-        
-        Args:
-            inputs: Dictionary with input_ids and attention_mask
-            
-        Returns:
-            List of similarity scores
-        """
         with torch.no_grad():
             logits = self.model(**inputs).logits
             scores = logits.squeeze()

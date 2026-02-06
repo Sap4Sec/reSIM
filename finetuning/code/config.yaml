@@ -2,12 +2,7 @@
 # Switch between 'bert' and 'deepseek' using model.type
 
 model:
-  type: "deepseek"  # Options: "bert", "deepseek"
-  
-  # BERT-specific settings
-  bert:
-    model_path: "/home/jovyan/work/reSAFE/reSAFE_code/reranker/models/next_sentence_prediction_bert_normal_mask30/checkpoint-67246"
-    tokenizer_path: "/home/jovyan/work/reSAFE/reSAFE_code/tokenizer"
+  type: "deepseek"
   
   # DeepSeek-specific settings
   deepseek:
@@ -15,20 +10,7 @@ model:
     sep_token: "<SEP>"
     pad_token: "<PAD>"
 
-# ============================================================
-# MODEL-SPECIFIC TRAINING HYPERPARAMETERS
-# ============================================================
-
 training:
-  bert:
-    learning_rate: 0.00001
-    num_epochs: 10
-    per_device_train_batch_size: 32
-    per_device_eval_batch_size: 32
-    gradient_accumulation_steps: 8
-    max_seq_length: 512
-    gradient_checkpointing: false
-    output_model_name: "reBERT"
   
   deepseek:
     learning_rate: 0.0001
@@ -57,10 +39,6 @@ training:
     fp16: false
     tf32: true
 
-# ============================================================
-# LORA CONFIGURATION (only for DeepSeek)
-# ============================================================
-
 lora:
   r: 16
   alpha: 16
@@ -75,39 +53,23 @@ lora:
     - "mlp.down_proj"
   bias: "none"
 
-# ============================================================
-# QUANTIZATION (only for DeepSeek)
-# ============================================================
-
 quantization:
   load_in_4bit: true
   use_double_quant: true
   quant_type: "nf4"
   compute_dtype: "bfloat16"
 
-# ============================================================
-# DATA PATHS
-# ============================================================
-
 data:
-  base_path: "/home/jovyan/work/reSAFE/reSAFE_code/"
+  base_path: "/app/vol/reSAFE_code/"
   train_file: "reranker/pandas_dataset_from_bincorp/dataset_for_margin_loss/final_train_hn.csv"
   val_file: "reranker/pandas_dataset_from_bincorp/dataset_for_margin_loss/final_val_hn.csv"
   use_half_dataset: true
   random_seed: 1000
 
-# ============================================================
-# HARDWARE
-# ============================================================
-
 hardware:
   cuda_visible_devices: "6,7"
   dataloader_num_workers: 2
   dataloader_pin_memory: true
-
-# ============================================================
-# OUTPUT
-# ============================================================
 
 output:
   db_name: "bincorp"
