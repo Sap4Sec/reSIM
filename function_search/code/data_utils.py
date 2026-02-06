@@ -25,24 +25,7 @@ def load_bfs_metrics(filepath):
 
 
 def create_pairs(df, full_df, sim_results, k_value):
-    """Create query-candidate pairs for reranking.
-    
-    Takes the bi-encoder results and creates pairs of (query_asm, candidate_asm)
-    for the cross-encoder to rerank.
-    
-    Args:
-        df: DataFrame with query functions (function_id, reranker_parsed, ground_truth)
-        full_df: DataFrame with all functions including candidates
-        sim_results: List of (query_id, top_k_ids) from bi-encoder
-        k_value: Number of candidates per query
-        
-    Returns:
-        Tuple of:
-        - q_seq: List of query assembly lists (repeated for each candidate)
-        - top_seq: List of candidate assembly lists
-        - top_ids: List of candidate ID lists
-        - gts: List of ground truth ID lists
-    """
+
     q_seq = []
     top_seq = []
     top_ids = []
@@ -89,22 +72,10 @@ def create_pairs(df, full_df, sim_results, k_value):
 
 
 def save_predictions(filepath, predictions):
-    """Save predictions to pickle file.
-    
-    Args:
-        filepath: Output path
-        predictions: List of predictions to save
-    """
     with open(filepath, 'wb') as f:
         pickle.dump(predictions, f)
 
 
 def save_metrics(filepath, metrics):
-    """Save metrics to JSON file.
-    
-    Args:
-        filepath: Output path
-        metrics: Dictionary of metrics
-    """
     with open(filepath, 'w') as f:
         json.dump(metrics, f)

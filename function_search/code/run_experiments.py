@@ -12,8 +12,6 @@ from config import Config, load_config
 from data_utils import load_csv, create_pairs, load_bfs_predictions, save_predictions, save_metrics
 from metrics import extract_info_with_optimum
 
-from rerankers.deep_reranker import worker_process
-
 
 def compute_batch_logits_reranker_parallel(
     config,
@@ -31,6 +29,10 @@ def compute_batch_logits_reranker_parallel(
     # Create pairs for reranking
     q_seq, top_seq, top_ids, q_gts = create_pairs(df, full_df, sim_results, k_value=k_value)
     
+    q_seq = q_seq[:5]
+    
+    from rerankers.deep_reranker import worker_process
+    
     # Get model paths
     model_path = config.get_reranker_full_path(reranker_name)
     tokenizer_path = config.get_tokenizer_full_path(reranker_name)
@@ -39,16 +41,16 @@ def compute_batch_logits_reranker_parallel(
     jobs = ctx.Queue()
     results = ctx.Queue()
     
-    print(f"Starting {config.num_gpus} GPU workers for {reranker_name}")
+    print(f"Starting {config.num_gpus()} GPU workers for {reranker_name}")
+    print(f"Using GPUs: {config.gpus}")
     
-    # Start worker processes
+    # Start worker processes - use actual GPU IDs from config
     processes = []
-    for i, gpu_id in enumerate(config.gpus):
-        p = ctx.Process(
-            target=worker_process,
-            args=(gpu_id, model_path, tokenizer_path, jobs, results,
-                  base_res_path, reranker_name, ctx, k_value),
-            daemon=False
+    for gpu_id in config.gpus:
+        p = ctx.Process(target=worker_process, 
+                        args=(gpu_id, model_path, tokenizer_path, jobs, results, 
+                              base_res_path, reranker_name, ctx, k_value),
+                        daemon=False
         )
         p.start()
         processes.append(p)
@@ -58,8 +60,7 @@ def compute_batch_logits_reranker_parallel(
         jobs.put((idx, q_seq[idx], top_seq[idx], top_ids[idx], q_gts[idx], batch_size))
     
     # Send termination signals
-    num_gpus = config.num_gpus()
-    for _ in range(num_gpus):
+    for _ in range(config.num_gpus()):
         jobs.put(None)
     
     # Collect results
@@ -97,8 +98,8 @@ def load_bfs_results(config, bfs_model, df):
     base_path = config.get_bfs_results_path(bfs_model)
     os.makedirs(base_path, exist_ok=True)
     
-    pred_file = os.path.join(base_path, f"{bfs_model}_preds_pool_{config.pool_size}_at_200.pkl")
-    metrics_file = os.path.join(base_path, f"{bfs_model}_metrics_pool_{config.pool_size}_at_200.json")
+    pred_file = os.path.join(base_path, f"{bfs_model.lower()}_preds_pool_{config.pool_size}_at_200.pkl")
+    metrics_file = os.path.join(base_path, f"{bfs_model.lower()}_metrics_pool_{config.pool_size}_at_200.json")
     
     # Check if files exist
     if os.path.exists(pred_file) and os.path.exists(metrics_file):
@@ -115,8 +116,8 @@ def load_bfs_results(config, bfs_model, df):
     
     embeddings_dir = os.path.join(config.get_data_path(), config.embeddings_subdir, bfs_model)
     
-    ids_file = f"{bfs_model}_pool_test_{config.pool_size}_functions_ids.json"
-    embeddings_file = f"{bfs_model}_pool_test_{config.pool_size}_embeddings_matrix.pt"
+    ids_file = f"{bfs_model.lower()}_pool_test_{config.pool_size}_functions_ids.json"
+    embeddings_file = f"{bfs_model.lower()}_pool_test_{config.pool_size}_embeddings_matrix.pt"
     
     print(f"Loading embeddings from: {embeddings_dir}")
     print(f"  IDs file: {ids_file}")
@@ -162,7 +163,13 @@ def load_bfs_results(config, bfs_model, df):
 
 
 def run_experiments(config, bfs_model, reranker_name):
-
+    """Run reranking experiments for a single model and reranker.
+    
+    Args:
+        config: Configuration object
+        bfs_model: Name of the bi-encoder model
+        reranker_name: Name of the reranker
+    """
     print(f"\n{'='*60}")
     print(f"Running experiment: {bfs_model} -> {reranker_name}")
     print(f"{'='*60}")
@@ -176,8 +183,9 @@ def run_experiments(config, bfs_model, reranker_name):
     print(f"Loading data from: {test_path}")
     
     df = load_csv(test_path)
-    full_df = load_csv(test_path)
+    full_df = load_csv(test_path)  # Same file for both
     
+    # Load BFS results (will compute if not available)
     bfs_predictions, bfs_metrics = load_bfs_results(config, bfs_model, df)
     
     # Run for each search depth

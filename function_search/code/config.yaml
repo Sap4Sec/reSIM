@@ -10,24 +10,17 @@ search_depths: [30, 50, 100, 200]  # K values for reranking
 batch_size: 50  # Inference batch size 
 
 # GPU configuration
-gpus: [0, 1]  # List of GPU IDs to use
+gpus: [4, 5, 6, 7]  # List of GPU IDs to use
 
 # Bi-encoder models to evaluate
 bfs_models:
   - "CLAP"
-  - "BINBERT"
-  - "JTRANS"
-  - "TREX"
-  - "PALMTREE"
-  - "SAFE"
-  - "GEMINI"
 
 # Reranker configurations
 rerankers:
-    
   reDEEP:
     name: "reDEEP_marginloss_finetuning_1_epochs_0.0001_lr"
-    model_path: "fintuned_models/reDEEP/bincorp/reDEEP_marginloss_finetuning_1_epochs_0.0001_lr/checkpoint-10357"
+    model_path: "finetuned_models/reDEEP/checkpoint-10357"
     tokenizer_path: null
     max_length: 2048
 
@@ -37,9 +30,9 @@ output:
   bfs_subdir: "BFS"
   pools_subdir: "POOLS_FOR_TESTING"
 
-# Data paths (relative to base_path)
+# Data paths
 data:
-  pandas_dataset_dir: "reranker/pandas_dataset_from_{db_name}/POOLS_FOR_TESTING"
+  pandas_dataset_dir: "pandas_dataset/pandas_dataset_from_{db_name}/POOLS_FOR_TESTING"
   embeddings_subdir: "embeddings"
-  models_dir: "models"  # Directory containing bi-encoder models (SAFE, JTRANS, etc.)
+  models_dir: "models"
 
