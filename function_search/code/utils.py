@@ -43,44 +43,63 @@ os.makedirs(FIGURE_OUTPUT_DIR, exist_ok=True)
 
 
 
-def get_bfs_metrics_path(db_name, bfs_model):
+def get_bfs_metrics_path(db_name, bfs_model, cve=None):
 
-    pool_size = DATASETS[db_name]["pool_size"]
-    
-    base_folder = os.path.join(
-        BASE_PATH, "function_search", "search_results",
-        db_name, "BFS", f"{db_name}_test", "POOLS_FOR_TESTING", bfs_model
-    )
-    
-    filename = f"{bfs_model}_metrics_pool_{pool_size}_at_200.json"
+    if db_name == "binpool_refactored":
+        base_folder = os.path.join(
+            BASE_PATH, "function_search", "search_results",
+            db_name, "BFS", f"{db_name}_vuln", "POOLS_FOR_TESTING", bfs_model, cve
+        )
+
+        filename = f"{bfs_model}_metrics_at_200_training.json"
+
+    else:
+        
+        pool_size = DATASETS[db_name]["pool_size"]
+        
+        base_folder = os.path.join(
+            BASE_PATH, "function_search", "search_results",
+            db_name, "BFS", f"{db_name}_test", "POOLS_FOR_TESTING", bfs_model
+        )
+        
+        filename = f"{bfs_model}_metrics_pool_{pool_size}_at_200.json"
     
     return os.path.join(base_folder, filename)
 
 
-def get_reranker_metrics_path(db_name, bfs_model, window_size=200, checkpoint=None):
+def get_reranker_metrics_path(db_name, bfs_model, window_size=200, checkpoint=None, cve=None):
 
-    pool_size = DATASETS[db_name]["pool_size"]
-    
-    if checkpoint:
+    if db_name == "binpool_refactored":
         base_folder = os.path.join(
             BASE_PATH, "function_search", "search_results",
-            db_name, RERANKER_NAME, "marginloss", f"{db_name}_test",
-            "POOLS_FOR_TESTING", "window", str(window_size), checkpoint
+            db_name, RERANKER_NAME, "marginloss", f"{db_name}_vuln", "POOLS_FOR_TESTING", "window", str(window_size), bfs_model, cve
         )
+
+        filename = f"{RERANKER_NAME}_metrics_at_200.json"
+
     else:
-        base_folder = os.path.join(
-            BASE_PATH, "function_search", "search_results",
-            db_name, RERANKER_NAME, "marginloss", f"{db_name}_test",
-            "POOLS_FOR_TESTING", "window", str(window_size), bfs_model
-        )
-    
-    filename = f"{RERANKER_NAME}_metrics_pool_{pool_size}_at_{window_size}.json"
-    
+        pool_size = DATASETS[db_name]["pool_size"]
+        
+        if checkpoint:
+            base_folder = os.path.join(
+                BASE_PATH, "function_search", "search_results",
+                db_name, RERANKER_NAME, "marginloss", f"{db_name}_test",
+                "POOLS_FOR_TESTING", "window", str(window_size), checkpoint
+            )
+        else:
+            base_folder = os.path.join(
+                BASE_PATH, "function_search", "search_results",
+                db_name, RERANKER_NAME, "marginloss", f"{db_name}_test",
+                "POOLS_FOR_TESTING", "window", str(window_size), bfs_model
+            )
+        
+        filename = f"{RERANKER_NAME}_metrics_pool_{pool_size}_at_{window_size}.json"
+        
     return os.path.join(base_folder, filename)
 
 
 def load_metrics(filepath):
-
+    
     with open(filepath, 'r') as f:
         data = json.load(f)
     
@@ -348,10 +367,13 @@ def plot_rq1_curves(db_name, results, models_to_plot=None, metric="recall", save
             pass
     
 
-    base_handles = [Line2D([0], [0], color=color_map[m], lw=1.8, linestyle="solid", label=m) 
-                    for m in models_to_plot if results[m]["baseline"] is not None]
-    color_leg = ax.legend(handles=base_handles, title="BFS Base", ncol=1, prop={'size': 7}, loc="lower right")
-    ax.add_artist(color_leg)
+    base_handles = [
+        Line2D([0], [0], color=color_map[m], lw=1.8, linestyle="solid", label=m)
+        for m in models_to_plot if m in results and results[m] is not None
+    ]
+    if base_handles:
+        color_leg = ax.legend(handles=base_handles, title="BFS Base", ncol=1, prop={'size': 7}, loc="lower right")
+        ax.add_artist(color_leg)
     
     method_handles = [
         Line2D([0], [0], color="0.2", lw=1.8, linestyle=method_styles["base"], label="BFS"),
@@ -461,6 +483,107 @@ def plot_window_comparison(results, bfs_model, db_name, metric="recall", save_pa
     plt.close()
 
 
+def plot_multi_base_results_with_optimum(curves, max_pos=30, file_name=None, label_y="Recall", image_title=None, stds=None):
+    """Plot curves produced in the multi-base example snippets.
+
+    `curves` should be a dict mapping base_model -> { method_name: metric_list, ..., 'opt': opt_list }
+    """
+    plt.figure(figsize=(6, 4))
+    ax = plt.gca()
+
+    ax.set_xlabel("Number of Nearest Results (k)")
+    ax.set_ylabel(label_y)
+    ax.set_ylim(0.0, 1.0)
+    ax.set_xlim(1, max_pos)
+
+    ax.yaxis.set_major_locator(MultipleLocator(0.1))
+    ax.yaxis.set_minor_locator(MultipleLocator(0.05))
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+
+    ax.grid(which='major', axis='x', linewidth=0.8, alpha=0.5)
+    ax.grid(which='major', axis='y', linewidth=0.8, alpha=0.5)
+    ax.grid(which='minor', axis='y', linewidth=0.5, alpha=0.25)
+
+    cycle_colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple"]
+
+    method_styles = {
+        "base": "solid",
+        "reDEEP": (0, (5, 1)),
+        "reDEEP_random": (0, (3, 1, 1, 1)),
+        "scratch_DEEP": (0, (3, 1, 1, 1)),
+        "opt": "dotted",
+    }
+
+    x = list(range(1, max_pos + 1))
+
+    bases = list(curves.keys())
+    for i, base in enumerate(bases):
+        methods = curves[base]
+        color = cycle_colors[i % len(cycle_colors)]
+
+        # Baseline (if present)
+        if "base" in methods and methods["base"] is not None:
+            yb = methods["base"][:max_pos]
+            ax.plot(x, yb, linestyle=method_styles["base"], linewidth=1.6, color=color)
+
+        # Rerankers and others
+        for mname, vals in methods.items():
+            if vals is None:
+                continue
+            if mname == "base":
+                continue
+            if mname == "opt":
+                try:
+                    yopt = vals[:max_pos]
+                    ax.plot(x, yopt, linestyle=method_styles.get("opt", "dotted"), linewidth=1.2, color=color)
+                except Exception:
+                    pass
+                continue
+
+            # Choose style: treat names starting with "reDEEP" as reDEEP
+            style = method_styles.get(mname, method_styles.get("reDEEP", (0, (5, 1))))
+            try:
+                y = vals[:max_pos]
+                ax.plot(x, y, linestyle=style, linewidth=1.4, color=color)
+            except Exception:
+                pass
+
+    # Build legends: one for bases (colors) and one for method styles
+    base_handles = [Line2D([0], [0], color=cycle_colors[i % len(cycle_colors)], lw=1.8, linestyle="solid", label=b)
+                    for i, b in enumerate(bases)]
+    if base_handles:
+        color_leg = ax.legend(handles=base_handles, title="BFS Base", ncol=1, prop={'size': 7}, loc="lower right")
+        ax.add_artist(color_leg)
+
+    # Collect all method names and build legend with proper labels
+    all_methods = set()
+    for base, series in curves.items():
+        all_methods.update(series.keys())
+    
+    meths_sorted = sorted(all_methods, key=lambda x: (x == "opt", x != "base", x))  # base first, opt last
+    method_handles = []
+    for m in meths_sorted:
+        color = "0.2"
+        label = "BFS" if m == "base" else "Optimal" if m == "opt" else m.replace("re", "")
+        if label == "DEEP_random":
+            label = "scratch_DEEP"
+        style = method_styles.get(m, "solid")
+        method_handles.append(
+            Line2D([0], [0], color=color, lw=1.4, linestyle=style, label=label)
+        )
+    ax.legend(handles=method_handles, title="Models", prop={'size': 7}, loc="lower left")
+
+    plt.tight_layout()
+
+    if file_name:
+        plt.savefig(file_name, dpi=500, format="pdf", bbox_inches="tight")
+        print(f"Saved: {file_name}")
+
+    plt.show()
+    plt.close()
+
+
 def generate_rq2_table(db_name, bfs_model, results):
     """Generate table comparing window sizes."""
     rows = []
@@ -544,54 +667,73 @@ def generate_rq3_table():
 
 # RQ4 utils
 
-def load_rq4_data(db_name="bincorp", bfs_model="CLAP"):
-
-    results = {}
+def load_rq4_curves_dict(db_name="bincorp", bases_to_plot=None, methods_to_plot=None, window_size=200):
+    if bases_to_plot is None:
+        bases_to_plot = ["CLAP"]
+    if methods_to_plot is None:
+        methods_to_plot = ["reDEEP", "scratch_DEEP"]
     
-    # Pretrained reDEEP checkpoint
-    try:
-        pretrained_path = get_reranker_metrics_path(
-            db_name, bfs_model, window_size=200, 
-            checkpoint="pretrained_checkpoint_5"  # Adjust checkpoint name as needed
-        )
-        pretrained_data = load_metrics(pretrained_path)
-        results["pretrained"] = {
-            "ndcg": pretrained_data['ndcg'],
-            "recall": pretrained_data['recall'],
-        }
-    except FileNotFoundError:
-        print("Pretrained checkpoint not found")
-        results["pretrained"] = None
+    curves_n = {}  # nDCG
+    curves_r = {}  # Recall
+    curves_p = {}  # Precision
     
-    # Random reDEEP checkpoint
-    try:
-        random_path = get_reranker_metrics_path(
-            db_name, bfs_model, window_size=200,
-            checkpoint="random_checkpoint_5"  # Adjust checkpoint name as needed
-        )
-        random_data = load_metrics(random_path)
-        results["random"] = {
-            "ndcg": random_data['ndcg'],
-            "recall": random_data['recall'],
-        }
-    except FileNotFoundError:
-        print("Random checkpoint not found")
-        results["random"] = None
+    for base in bases_to_plot:
+        curves_n[base] = {}
+        curves_r[base] = {}
+        curves_p[base] = {}
+        
+        for method in methods_to_plot:
+            try:
+                if method == "reDEEP":
+                    # Pretrained
+                    folder = os.path.join(
+                        BASE_PATH, "function_search", "search_results",
+                        db_name, method, "marginloss", f"{db_name}_test",
+                        "POOLS_FOR_TESTING", "window", str(window_size),
+                        f"{base}_margin_0.2_checkpoint_2590"
+                    )
+                    fname = f"{method}_metrics_pool_{DATASETS[db_name]['pool_size']}_at_{window_size}.json"
+                elif method == "scratch_DEEP":
+                    # Random
+                    folder = os.path.join(
+                        BASE_PATH, "function_search", "search_results",
+                        db_name, "reDEEP_random", "marginloss", f"{db_name}_test",
+                        "POOLS_FOR_TESTING", "window", str(window_size),
+                        base
+                    )
+                    fname = f"reDEEP_random_metrics_pool_{DATASETS[db_name]['pool_size']}_at_{window_size}.json"
+                else:
+                    continue
+                
+                filepath = os.path.join(folder, fname)
+                with open(filepath, 'r') as f:
+                    data = json.load(f)
+                
+                # data format: [ndcg, recall, precision, ndcg_opt?, recall_opt?, precision_opt?]
+                if isinstance(data, list) and len(data) >= 3:
+                    curves_n[base][method] = data[0]
+                    curves_r[base][method] = data[1]
+                    curves_p[base][method] = data[2]
+                    
+                    # Store optimal if present
+                    if len(data) > 3:
+                        curves_n[base]["opt"] = data[3]
+                        curves_r[base]["opt"] = data[4] if len(data) > 4 else None
+                        curves_p[base]["opt"] = data[5] if len(data) > 5 else None
+                else:
+                    print(f"  Warning: unexpected data format for {method} in {base}")
+            
+            except FileNotFoundError as e:
+                print(f"  Skipping {method} for {base}: {e}")
+                continue
     
-    return results
+    return curves_n, curves_r, curves_p
 
 
-def display_rq4_results():
-
-    print("=" * 80)
-    print("RQ4: Pre-training Impact Comparison")
-    print("=" * 80)
-    print("\nComparison at checkpoint 5 (same data and training steps):")
-    print("-" * 40)
-    
+def generate_rq4_table():   
     # Values from the paper (CLAP + reDEEP on BinCorp)
     data = {
-        "Model": ["reDEEP (pretrained)", "random_reDEEP"],
+        "Model": ["reDEEP (pretrained)", "scratch_DEEP"],
         "nDCG (avg)": [0.92, 0.14],
         "Recall (avg)": [0.93, 0.43],
     }
@@ -600,3 +742,230 @@ def display_rq4_results():
     display(df.style.format(precision=2).set_properties(**{'text-align': 'right'}))
     
     return df
+
+
+def plot_rq4_curves_multi(db_name, bases_to_plot=None, methods_to_plot=None, 
+                          metrics=None, max_pos=30, save_dir=None):
+    if bases_to_plot is None:
+        bases_to_plot = ["CLAP"]
+    if methods_to_plot is None:
+        methods_to_plot = ["reDEEP", "scratch_DEEP"]
+    if metrics is None:
+        metrics = ["ndcg", "recall"]
+    
+    print(f"\nLoading RQ4 curves for {db_name}...")
+    curves_n, curves_r, curves_p = load_rq4_curves_dict(db_name, bases_to_plot, methods_to_plot)
+    
+    metric_map = {
+        "ndcg": (curves_n, "nDCG"),
+        "recall": (curves_r, "Recall"),
+        "precision": (curves_p, "Precision"),
+    }
+    
+    for metric in metrics:
+        if metric not in metric_map:
+            print(f"Warning: unknown metric '{metric}', skipping")
+            continue
+        
+        curves, label_y = metric_map[metric]
+        
+        if save_dir:
+            save_path = os.path.join(save_dir, f"RQ4_{metric}_pretrain_vs_random.pdf")
+        else:
+            save_path = None
+        
+        plot_multi_base_results_with_optimum(
+            curves=curves,
+            max_pos=max_pos,
+            file_name=save_path,
+            label_y=label_y,
+        )
+
+# Vulnerability utils
+
+def plot_vuln_curves(db_name, results, models_to_plot=None, metric="recall", save_path=None):
+
+    if models_to_plot is None:
+        models_to_plot = ["CLAP"]
+    
+    plt.figure(figsize=(5, 4))
+    ax = plt.gca()
+    
+    ax.set_xlabel("Number of Nearest Results (k)")
+    ax.set_ylabel(metric.capitalize())
+    ax.set_ylim(0.2, 1.0)
+    ax.set_xlim(1, 30)
+    
+    ax.yaxis.set_major_locator(MultipleLocator(0.1))
+    ax.yaxis.set_minor_locator(MultipleLocator(0.05))
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.set_xticks([1] + list(range(5, 31, 5)))
+    
+    ax.grid(which='major', axis='x', linewidth=0.8, alpha=0.5)
+    ax.grid(which='major', axis='y', linewidth=0.8, alpha=0.5)
+    ax.grid(which='minor', axis='y', linewidth=0.5, alpha=0.25)
+    
+    # Color map for BFS models
+    cycle_colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple"]
+    color_map = {m: cycle_colors[i % len(cycle_colors)] for i, m in enumerate(models_to_plot)}
+    
+    # Line styles for methods
+    method_styles = {
+        "base": "solid",
+        "reDEEP": (0, (5, 1)),
+        "opt": "dotted",
+    }
+    
+    x = list(range(1, 31))
+    
+    for model in models_to_plot:
+        if model not in results or results[model] is None:
+            continue
+
+        color = color_map.get(model, "tab:blue")
+
+        res = results[model]
+
+        # Nested format with baseline/reranked/optimal
+        if isinstance(res, dict) and "baseline" in res:
+            try:
+                if res.get("baseline") is not None:
+                    y_baseline = res["baseline"][metric][:30]
+                    ax.plot(x, y_baseline, linestyle=method_styles["base"], linewidth=1.6, color=color)
+            except Exception as e:
+                print(f"Error plotting baseline for {model}: {e}")
+
+            try:
+                if res.get("reranked") is not None:
+                    y_reranked = res["reranked"][metric][:30]
+                    ax.plot(x, y_reranked, linestyle=method_styles.get("reDEEP", method_styles["reDEEP"]), linewidth=1.4, color=color)
+            except Exception as e:
+                print(f"Error plotting reranked for {model}: {e}")
+
+            try:
+                if res.get("optimal") is not None:
+                    y_optimal = res["optimal"][metric][:30]
+                    ax.plot(x, y_optimal, linestyle=method_styles["opt"], linewidth=1.2, color=color)
+            except Exception as e:
+                print(f"Error plotting optimal for {model}: {e}")
+
+        # Case: pretrained reDEEP + scratch (flat) -> treat pretrained as baseline and scratch as reranked
+        elif isinstance(res, dict) and ("reDEEP" in res or "scratch_DEEP" in res) and not ("baseline" in res):
+            try:
+                if "reDEEP" in res and res.get("reDEEP") is not None and metric in res["reDEEP"]:
+                    y_pre = res["reDEEP"][metric][:30]
+                    ax.plot(x, y_pre, linestyle=method_styles["base"], linewidth=1.6, color=color)
+            except Exception as e:
+                print(f"Error plotting pretrained reDEEP baseline for {model}: {e}")
+
+            try:
+                if "scratch_DEEP" in res and res.get("scratch_DEEP") is not None and metric in res["scratch_DEEP"]:
+                    y_scratch = res["scratch_DEEP"][metric][:30]
+                    ax.plot(x, y_scratch, linestyle=method_styles.get("reDEEP", method_styles["reDEEP"]), linewidth=1.4, color=color)
+            except Exception as e:
+                print(f"Error plotting scratch_DEEP for {model}: {e}")
+
+        # Flat format: {'ndcg': [...], 'recall': [...]} -> plot metric directly
+        elif isinstance(res, dict) and metric in res:
+            try:
+                y = res[metric][:30]
+                style = method_styles.get(model, method_styles.get("reDEEP"))
+                ax.plot(x, y, linestyle=style, linewidth=1.6, color=color)
+            except Exception as e:
+                print(f"Error plotting flat results for {model}: {e}")
+    
+
+    base_handles = [Line2D([0], [0], color=color_map[m], lw=1.8, linestyle="solid", label=m) 
+                    for m in models_to_plot if results[m]["baseline"] is not None]
+    color_leg = ax.legend(handles=base_handles, title="BFS Base", ncol=1, prop={'size': 7}, loc="lower right")
+    ax.add_artist(color_leg)
+    
+    method_handles = [
+        Line2D([0], [0], color="0.2", lw=1.8, linestyle=method_styles["base"], label="BFS"),
+        Line2D([0], [0], color="0.2", lw=1.8, linestyle=method_styles["reDEEP"], label="DEEP"),
+        Line2D([0], [0], color="0.2", lw=1.8, linestyle=method_styles["opt"], label="Optimal"),
+    ]
+    ax.legend(handles=method_handles, title="Models", prop={'size': 7}, loc="lower left")
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=500, format="pdf", bbox_inches="tight")
+        print(f"Saved: {save_path}")
+    
+    plt.show()
+    plt.close()
+
+
+def load_vuln_data(db_name):
+
+    results = {}
+    model = "CLAP"
+    
+    results[model] = {"baseline": None, "reranked": None, "optimal": None}
+    
+    # Get CVE directories
+    model_path = os.path.join(
+        BASE_PATH, "function_search", "search_results",
+        db_name, "BFS", f"{db_name}_vuln", "POOLS_FOR_TESTING", model
+    )
+    
+    cves = [d for d in os.listdir(model_path) 
+            if os.path.isdir(os.path.join(model_path, d))]
+    
+    # === Load Baseline ===
+    print(f"  Loading baseline for {len(cves)} CVEs...")
+    all_baseline_ndcg = []
+    all_baseline_recall = []
+    
+    for cve in cves:
+        try:
+            baseline_path = get_bfs_metrics_path(db_name, model, cve)
+            baseline_data = load_bfs_metrics(baseline_path)
+            all_baseline_ndcg.append(baseline_data['ndcg'])
+            all_baseline_recall.append(baseline_data['recall'])
+        except FileNotFoundError as e:
+            continue
+    
+    if all_baseline_ndcg:
+        results[model]["baseline"] = {
+            "ndcg": np.mean(all_baseline_ndcg, axis=0).tolist(),
+            "recall": np.mean(all_baseline_recall, axis=0).tolist(),
+        }
+    
+    # === Load Reranked ===
+    
+    all_reranked_ndcg = []
+    all_reranked_recall = []
+    all_optimal_ndcg = []
+    all_optimal_recall = []
+    
+    for cve in cves:
+        try:
+            reranked_path = get_reranker_metrics_path(db_name, model, window_size=200, cve=cve)
+            reranked_data = load_metrics(reranked_path)
+            all_reranked_ndcg.append(reranked_data['ndcg'])
+            all_reranked_recall.append(reranked_data['recall'])
+            
+            # Collect optimal metrics if available
+            if reranked_data['ndcg_opt'] is not None:
+                all_optimal_ndcg.append(reranked_data['ndcg_opt'])
+                all_optimal_recall.append(reranked_data['recall_opt'])
+            
+        except FileNotFoundError as e:
+            continue
+    
+    if all_reranked_ndcg:
+        results[model]["reranked"] = {
+            "ndcg": np.mean(all_reranked_ndcg, axis=0).tolist(),
+            "recall": np.mean(all_reranked_recall, axis=0).tolist(),
+        }
+    
+    if all_optimal_ndcg:
+        results[model]["optimal"] = {
+            "ndcg": np.mean(all_optimal_ndcg, axis=0).tolist(),
+            "recall": np.mean(all_optimal_recall, axis=0).tolist(),
+        }
+    
+    return results
