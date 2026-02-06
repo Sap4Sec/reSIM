@@ -35,5 +35,5 @@ reproduce_results.ipynb
 
 ## Dataset
 
-Resources for running the experiments as well as the fine-tuned reSIM model are available <a href="">here</a>
+Resources for running the experiments as well as the fine-tuned reSIM model are available <a href="https://zenodo.org/records/18505205?token=eyJhbGciOiJIUzUxMiJ9.eyJpZCI6Ijc5Njc1OGUzLWU2ODEtNDg5Zi05ZjVhLWU3ZDY4MTdkZGZjOCIsImRhdGEiOnt9LCJyYW5kb20iOiIzYzdlOWY4ODMwOWUyMTI0ZTllZGU0ZDc1Y2NhNDdhNiJ9.cBZQTVziY_IJvmAVRBIBM5L_BGDDtPcGkoOWvfGr4IG6Aaj5jvwoIf2WJsCPou3BI-5OC9wt1mMJKDkvCPl-uA">here</a>
 
