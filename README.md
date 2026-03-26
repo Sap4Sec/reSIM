@@ -1,5 +1,5 @@
 # reSIM
-Code for the "ReSIM: Re-ranking Binary Similarity Embeddings to Improve Function Search Performance" paper
+Code for the "Neural Re-ranking for Binary Function Similarity Search" paper
 
 
 ## Build Docker image
